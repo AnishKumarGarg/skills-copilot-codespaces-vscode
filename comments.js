@@ -1,49 +1,60 @@
 // Create Web server
-const express = require('express');
-const app = express();
-const bodyParser = require('body-parser');
-const comments = require('./comments');
+// npm install express
+// npm install body-parser
+// npm install ejs
+// npm install mongoose
+var express = require('express');
+var bodyParser = require('body-parser');
+var ejs = require('ejs');
+var mongoose = require('mongoose');
+var app = express();
+var port = 3000;
 
-// Use the body-parser middleware
-app.use(bodyParser.json());
+// Connect to MongoDB
+mongoose.connect('mongodb://localhost/Comments');
+
+// Create a schema
+var commentSchema = new mongoose.Schema({
+    name: String,
+    comment: String
+});
+
+// Create a model
+var Comment = mongoose.model('Comment', commentSchema);
+
+// Set view engine
+app.set('view engine', 'ejs');
+
+// Use body-parser
+app.use(bodyParser.urlencoded({extended: true}));
 
 // Get all comments
-app.get('/comments', (req, res) => {
-  res.json(comments);
+app.get('/', function(req, res) {
+    Comment.find({}, function(err, comments) {
+        if (err) {
+            console.log(err);
+        } else {
+            res.render('index', {comments: comments});
+        }
+    });
 });
 
-// Get a comment by id
-app.get('/comments/:id', (req, res) => {
-  const comment = comments.find(comment => comment.id === Number(req.params.id));
-  res.json(comment);
+// Post a comment
+app.post('/comment', function(req, res) {
+    var newComment = new Comment({
+        name: req.body.name,
+        comment: req.body.comment
+    });
+
+    newComment.save(function(err) {
+        if (err) {
+            console.log(err);
+        } else {
+            res.redirect('/');
+        }
+    });
 });
 
-// Create a comment
-app.post('/comments', (req, res) => {
-  const id = comments.length + 1;
-  const newComment = {
-    id,
-    ...req.body
-  };
-  comments.push(newComment);
-  res.status(201).json(newComment);
-});
-
-// Update a comment
-app.put('/comments/:id', (req, res) => {
-  const comment = comments.find(comment => comment.id === Number(req.params.id));
-  Object.assign(comment, req.body);
-  res.status(200).json(comment);
-});
-
-// Delete a comment
-app.delete('/comments/:id', (req, res) => {
-  const index = comments.findIndex(comment => comment.id === Number(req.params.id));
-  comments.splice(index, 1);
-  res.sendStatus(204);
-});
-
-// Start the server
-app.listen(3000, () => {
-  console.log('Server is running on http://localhost:3000');
+app.listen(port, function() {
+    console.log('Server is running on port ' + port);
 });
